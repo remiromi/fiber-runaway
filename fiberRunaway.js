@@ -2,7 +2,7 @@
 	var sceneWidth, sceneHeight;
 	var camera, scene, renderer, dom;
 	var sun, ground, rollingPath, tunnel, border, border1;
-	var heroCube;
+	var hero;
 	var rollingSpeed = 0.01;
 	var worldRadius  = 26;
 	var heroRadius 	 = 0.2;
@@ -15,21 +15,18 @@
 	var middleLane 	 = 0;
 	var currentLane;
 	var clock, jumping;
-	var coneReleaseInterval = 1.0;
-	//var coneReleaseInterval=0.2;
-	var conesInPath, conesPool;
+	var objectReleaseInterval = 1.0;
+	var objectsInPath, objectsPool;
 	var particleGeometry;
 	var particleCount 	= 20;
 	var explosionPower  = 1.06;
 	var particles;
 	var scoreText, score;
 	var hasCollided;
-	var muvt = false;
+	var moving = false;
 	var moonTexture;
 	var count = 100;
 	var isRestoring = false;
-	var octaTexture;
-	var coneTexture;
 	var soundPowerUp;
 	var soundHit;
 	var soundObstacles;
@@ -45,43 +42,38 @@
 }
 function easy(){
 	rollingSpeed = 0.005;
-	coneReleaseInterval = 2.0;
+	objectReleaseInterval = 2.0;
 	document.getElementById("easy").style.opacity = "1.0";
 	document.getElementById("normal").style.opacity = "0.6";
 	document.getElementById("hard").style.opacity = "0.6";
-
 }
 function medium(){
 	rollingSpeed = 0.01;
-	coneReleaseInterval = 1.0;
+	objectReleaseInterval = 1.0;
 	document.getElementById("easy").style.opacity = "0.6";
 	document.getElementById("normal").style.opacity = "1.0";
 	document.getElementById("hard").style.opacity = "0.6";
-
-
 }
 function hard(){
 	rollingSpeed = 0.02;
-	coneReleaseInterval = 0.5;
+	objectReleaseInterval = 0.5;
 	document.getElementById("easy").style.opacity = "0.6";
 	document.getElementById("normal").style.opacity = "0.6";
 	document.getElementById("hard").style.opacity = "1.0";
 }
 init();
 function start(){
-	muvt = !muvt;
+	moving = !moving;
 	document.getElementById("MenuScreen").style.height = "0%";
 	audioStart();
 	update();
 }
 function restart(){
-	//backgroud.stop();
 	count = 100;
 	div = document.getElementById('gioco');
 	div.parentNode.removeChild(div);
-	//restart();
 	audioStart();
-	muvt = !muvt;
+	moving = !moving;
 	init();
 	document.getElementById("GameOverScreen").style.height = "0%";
 }
@@ -97,23 +89,23 @@ function init() {
 	setTimeout(function(){
 		defineObjectPool();
 		update();
-	},500);
+	},1500);
 }
 function createScene(){
 	hasCollided = false;
-	conesInPath = [];
-	conesPool = [];
+	objectsInPath = [];
+	objectsPool = [];
 	clock = new THREE.Clock();
 		clock.start();
 	heroRollingSpeed = (rollingSpeed*worldRadius/heroRadius)/5;
-	//coordinate sferiche di un punto
 	sphericalHelper = new THREE.Spherical();
+	// Lanes position
 	pathAngleValues = [1.52,1.57,1.62];
     sceneWidth  = window.innerWidth;
     sceneHeight = window.innerHeight;
     scene = new THREE.Scene();
-    	scene.fog = new THREE.FogExp2( 0xcccccc, 0.05 ); //in potenziamento 0.4
-    camera   = new THREE.PerspectiveCamera( 60, sceneWidth / sceneHeight, 0.1, 100 );
+    	scene.fog = new THREE.FogExp2( 0xcccccc, 0.05 ); 
+    camera   = new THREE.PerspectiveCamera( 60, sceneWidth / sceneHeight, 0.1, 30 );
     renderer = new THREE.WebGLRenderer({alpha:true});
     	renderer.setClearColor(0x000000, 1); 
     	renderer.shadowMap.enabled = true;
@@ -139,14 +131,6 @@ function createScene(){
 		orbitControl.addEventListener( 'change', render );
 		orbitControl.enableKeys = false;
 		orbitControl.enablePan = false; // */
-
-		//orbitControl.enableZoom = false;
-		//orbitControl.minPolarAngle = 0.1;
-		//orbitControl.maxPolarAngle = 0.1;
-		//orbitControl.minPolarAngle = 1.0;
-		//orbitControl.maxPolarAngle = 1.1;
-		//orbitControl.minAzimuthAngle = -0.3;
-		//orbitControl.maxAzimuthAngle = 0.3;
 	
 	window.addEventListener('resize', onWindowResize, false);
 	document.onkeydown = handleKeyDown;
@@ -157,47 +141,45 @@ function defineObjectPool(){
 	var tempPool = [0,0,0,0,0,0];
 	for(var i = 0; i < maxConesPool;i++){
 		choose = Math.floor(Math.random()*100)+1;
-		console.log(choose);
+		// console.log(choose);
 		if(i == 0){
-			conesPool.push(cloud.clone());
+			objectsPool.push(cloud.clone());
 			tempPool[2] +=1;
 		}else if(i == 8){
-			conesPool.push(pila.clone());
+			objectsPool.push(pila.clone());
 			tempPool[4] +=1;
 		}else if(i == 16){
-			conesPool.push(lampadina.clone());
+			objectsPool.push(lampadina.clone());
 			tempPool[1] +=1;
 		}else if(i == 24){
-			conesPool.push(createOctahedron());
+			objectsPool.push(createOctahedron());
 			tempPool[5] +=1;
 		}else if(i == 32){
-			conesPool.push(bomba.clone());
+			objectsPool.push(bomba.clone());
 			tempPool[3] +=1;
 		}
 		if(choose >= 40 && choose<60){
-			newCone = ingranaggio.clone();
+			newObject = ingranaggio.clone();
 			tempPool[0] += 1;
 		}else if(choose>=60 && choose<70){
-			newCone = lampadina.clone();
+			newObject = lampadina.clone();
 			tempPool[1] += 1;
 		}else if(choose>=70 && choose<80){
-			newCone = cloud.clone();
+			newObject = cloud.clone();
 			tempPool[2] += 1;
 		}else if(choose>0 && choose<40){
-			newCone = bomba.clone();
+			newObject = bomba.clone();
 			tempPool[3] += 1;
 		}else if(choose>=80 && choose<90){
-			newCone = pila.clone();
+			newObject = pila.clone();
 			tempPool[4] += 1;
 		}else{
-			newCone = createOctahedron();
+			newObject = createOctahedron();
 			tempPool[5] += 1;
-		}
-		//newCone.visible = false;		
-		conesPool.push(newCone);
+		}	
+		objectsPool.push(newObject);
 	}
 	console.log(tempPool);
-	
 }
 function addWorld(){
 	var sides = 100, tiers = 100;
@@ -206,9 +188,7 @@ function addWorld(){
 		pathTexture.wrapS = pathTexture.wrapT = THREE.RepeatWrapping; 
 		pathTexture.repeat.set( 11, 11);
 	var pathGeometry = new THREE.SphereGeometry( worldRadius, sides,tiers);
-	var pathMaterial = new THREE.MeshStandardMaterial( {color:0xffffff, 
-																						flatShading:THREE.FlatShading,
-		 map: pathTexture } );
+	var pathMaterial = new THREE.MeshStandardMaterial( {color:0xffffff, flatShading:THREE.FlatShading, map: pathTexture } );
 	rollingPath = new THREE.Mesh( pathGeometry, pathMaterial );
 		rollingPath.receiveShadow = true;
 		rollingPath.castShadow 	  = false;
@@ -252,12 +232,10 @@ function addWorld(){
 	scene.add( tunnel );
 }
 function addHero(){
-	jumping=false;
+	jumping = false;
 	children = new Array();
-	//setTimeout(init2(heroCube),1000);
 	var mtlLoader = new THREE.MTLLoader();
   	mtlLoader.load("robot/robot.mtl", function(materials){
-    // BEGIN Clara.io JSON loader code
     var objectLoader = new THREE.OBJLoader();
     objectLoader.setMaterials(materials);
     objectLoader.load("robot/robot.obj", function ( obj ) {
@@ -266,23 +244,23 @@ function addHero(){
 			children.push(child);
 		}
 	} );
-    heroCube = obj;
+    hero = obj;
 
     createHierarchy();
     
-    heroCube.receiveShadow = true;
+    hero.receiveShadow = true;
     for (var i = 0; i < children.length;i++)
 		children[i].castShadow = true;
-	heroCube.castShadow = true;
-	scene.add(heroCube);
+	hero.castShadow = true;
+	scene.add(hero);
 	//initial position
-	heroCube.scale.set(.01,.01,.01);
-	//heroCube.scale.set(.1,.1,.1);
-	heroCube.position.y = heroBaseY;
-	heroCube.position.z = 4.8;
+	hero.scale.set(.01,.01,.01);
+	//hero.scale.set(.1,.1,.1);
+	hero.position.y = heroBaseY;
+	hero.position.z = 4.8;
 	currentLane = middleLane;
-	heroCube.position.x = currentLane;
-	heroCube.rotateY(135);
+	hero.position.x = currentLane;
+	hero.rotateY(135);
     	});
   	});
 }
@@ -302,7 +280,7 @@ function addLight(){
 }
 function handleKeyDown(keyEvent){
 	if(jumping)return;
-	var validMove=true;
+	var validMove = true;
 	if ( keyEvent.keyCode === 37 || keyEvent.keyCode === 65) {//'A' or Left arrow
 		if(currentLane==middleLane){
 			currentLane=leftLane;
@@ -326,66 +304,48 @@ function handleKeyDown(keyEvent){
 		}
 		validMove=false;
 	}
-	//heroCube.position.x=currentLane;
 	if(validMove){
-		jumping=true;
-		bounceValue=0.06;
+		jumping = true;
+		bounceValue = 0.06;
 	}
 }
-//aggiungi oggetti in una corsia della strada
-function addPathCone(){
+// Aggiungi oggetti in una corsia della strada
+function addPathObj(){
 	var options = [0,1,2];
 	var lane = Math.floor(Math.random()*3);
-	addCone(lane);
-	//elimina la corsia lane appena usata
+	addObj(lane);
+	// Elimina la corsia lane appena usata
 	options.splice(lane,1);
-	//seleziona random un'altra corsia tra le rimanenti
+	// Seleziona random un'altra corsia tra le rimanenti
 	if(Math.random() > 0.5){
 		lane = Math.floor(Math.random()*2);
-		addCone(options[lane]);
+		addObj(options[lane]);
 	}
 }
 // Aggiunge l'oggetto alla scena sulla corsia row
-function addCone(row){
-	var newCone;
-	if(conesPool.length == 0)return;
-	newCone = conesPool.pop();
-	for(var i = 0; i < newCone.children.length;i++){
-		newCone.children[i].visible = true;
+function addObj(row){
+	var newObject;
+	if(objectsPool.length == 0)return;
+	newObject = objectsPool.pop();
+	for(var i = 0; i < newObject.children.length;i++){
+		newObject.children[i].visible = true;
 	}
-	newCone.visible = true;
-	conesInPath.push(newCone);
+	newObject.visible = true;
+	objectsInPath.push(newObject);
 	sphericalHelper.set( worldRadius-0.3, pathAngleValues[row],-(rollingPath.rotation.x-4));
-	newCone.position.setFromSpherical( sphericalHelper );
+	newObject.position.setFromSpherical( sphericalHelper );
 	var rollingGroundVector = rollingPath.position.clone().normalize();
 	
-	var coneVector = newCone.position.clone().normalize();
-		newCone.quaternion.setFromUnitVectors(coneVector,rollingGroundVector);
-	rollingPath.add(newCone);
-}
- /*     COMPLETE     */
-function createCone(){
-	var sides = 8;
-	var tiers = 6;
-	var coneGeometry = new THREE.ConeGeometry( 0.5,1,sides,tiers );
-	var coneMaterial = new THREE.MeshPhongMaterial( { map: coneTexture } );
-	var coneObj = new THREE.Mesh( coneGeometry, coneMaterial );
-	coneObj.receiveShadow = true;
-	coneObj.castShadow = true;
-	coneObj.position.y = 0.25;
-	var cone = new THREE.Object3D();
-	cone.name = "cone";
-	cone.add(coneObj);
-	return cone;
+	var objVector = newObject.position.clone().normalize();
+		newObject.quaternion.setFromUnitVectors(objVector,rollingGroundVector);
+	rollingPath.add(newObject);
 }
 function createLamp(){
-	//var bomb; (da mettere in alto)
-	var mtlBombLoader = new THREE.MTLLoader();
-  	mtlBombLoader.load("oggetti/lampadina.mtl", function(materials){
-	    // BEGIN Clara.io JSON loader code
-	    var objectBombLoader = new THREE.OBJLoader();
-	    objectBombLoader.setMaterials(materials);
-	    objectBombLoader.load("oggetti/lampadina.obj", function ( obj ) {
+	var mtlLampLoader = new THREE.MTLLoader();
+  	mtlLampLoader.load("oggetti/lampadina.mtl", function(materials){
+	    var objectLampLoader = new THREE.OBJLoader();
+	    objectLampLoader.setMaterials(materials);
+	    objectLampLoader.load("oggetti/lampadina.obj", function ( obj ) {
 		    obj.traverse( function ( child ) {
 				child.castShadow = true;
 				child.receiveShadow = true;		
@@ -398,13 +358,10 @@ function createLamp(){
 			lampadina.add(obj);
     	});
   	});
-	//return bomb;
 }
 function createBomb(){
-	//var bomb; (da mettere in alto)
 	var mtlBombLoader = new THREE.MTLLoader();
   	mtlBombLoader.load("oggetti/bomba.mtl", function(materials){
-	    // BEGIN Clara.io JSON loader code
 	    var objectBombLoader = new THREE.OBJLoader();
 	    objectBombLoader.setMaterials(materials);
 	    objectBombLoader.load("oggetti/bomba.obj", function ( obj ) {
@@ -421,16 +378,13 @@ function createBomb(){
 			bomba.add(obj);
     	});
   	});
-	//return bomb;
 }
 function createGear(){
-	//var gears; (da mettere in alto)
-	var mtlBombLoader = new THREE.MTLLoader();
-  	mtlBombLoader.load("oggetti/ingraGold.mtl", function(materials){
-	    // BEGIN Clara.io JSON loader code
-	    var objectBombLoader = new THREE.OBJLoader();
-	    objectBombLoader.setMaterials(materials);
-	    objectBombLoader.load("oggetti/ingraGold.obj", function ( obj ) {
+	var mtlGearLoader = new THREE.MTLLoader();
+  	mtlGearLoader.load("oggetti/ingraGold.mtl", function(materials){
+	    var objectGearLoader = new THREE.OBJLoader();
+	    objectGearLoader.setMaterials(materials);
+	    objectGearLoader.load("oggetti/ingraGold.obj", function ( obj ) {
 		    obj.traverse( function ( child ) {
 				child.castShadow = true;
 				child.receiveShadow = true;		
@@ -439,20 +393,16 @@ function createGear(){
 			obj.position.y = 0.80;
 			obj.rotateZ(90);
 			ingranaggio.name = "ingranaggio";
-			ingranaggio.add(obj);
-			
+			ingranaggio.add(obj);		
     	});
   	});
-	//return bomb;
 }
 function createPila(){
-	//var bomb; (da mettere in alto)
-	var mtlBombLoader = new THREE.MTLLoader();
-  	mtlBombLoader.load("oggetti/vitadiPi.mtl", function(materials){
-	    // BEGIN Clara.io JSON loader code
-	    var objectBombLoader = new THREE.OBJLoader();
-	    objectBombLoader.setMaterials(materials);
-	    objectBombLoader.load("oggetti/vitadiPi.obj", function ( obj ) {
+	var mtlBatteryLoader = new THREE.MTLLoader();
+  	mtlBatteryLoader.load("oggetti/vitadiPi.mtl", function(materials){
+	    var objectBatteryLoader = new THREE.OBJLoader();
+	    objectBatteryLoader.setMaterials(materials);
+	    objectBatteryLoader.load("oggetti/vitadiPi.obj", function ( obj ) {
 		    obj.traverse( function ( child ) {
 				child.castShadow = true;
 				child.receiveShadow = true;		
@@ -465,28 +415,23 @@ function createPila(){
 			pila.add(obj);
     	});
   	});
-	//return bomb;
 }
 function createCloud(){
-	//var clouds; (da mettere in alto)
-	var mtlBombLoader = new THREE.MTLLoader();
-  	mtlBombLoader.load("oggetti/Cloud_3.mtl", function(materials){
-	    // BEGIN Clara.io JSON loader code
-	    var objectBombLoader = new THREE.OBJLoader();
-	    objectBombLoader.setMaterials(materials);
-	    objectBombLoader.load("oggetti/Cloud_3.obj", function ( obj ) {
+	var mtlCloudLoader = new THREE.MTLLoader();
+  	mtlCloudLoader.load("oggetti/Cloud_3.mtl", function(materials){
+	    var objectCloudLoader = new THREE.OBJLoader();
+	    objectCloudLoader.setMaterials(materials);
+	    objectCloudLoader.load("oggetti/Cloud_3.obj", function ( obj ) {
 		    obj.receiveShadow = true;
 		    obj.visible = false;
 		    obj.traverse( function ( child ) {
 				child.castShadow = true;
 				child.receiveShadow = true;
-				
 			} );
 			obj.scale.set(.03,.03,.03);
 			obj.position.y = 1;
 			cloud.name = "nuvoletta";
 			cloud.add(obj);
-			
     	});
   	});
 }
@@ -494,7 +439,6 @@ function createOctahedron(){
 	var octaGeometry = new THREE.OctahedronGeometry(0.4);
 	var wireframe = new THREE.WireframeGeometry(octaGeometry);
 	var line = new THREE.LineSegments(wireframe);
-	//line.material.depthTest = true;
 	line.material.opacity = 0.40;
 	line.material.transparent = true;
 	line.material.color = new THREE.Color(0xffffff);
@@ -509,55 +453,55 @@ function createOctahedron(){
 function update(){
 	document.getElementById("score").innerHTML = "Score: " + count;
 	moveClank(max, max2,centerGamba,centroTesta);
-	//animate
+	// Animate
     rollingPath.rotation.x 	+= rollingSpeed/5;
     tunnel.rotation.x 		+= rollingSpeed/5;
     border.rotation.x 		+= rollingSpeed/5;
     border1.rotation.x 		+= rollingSpeed/5;
 
-    if(heroCube.position.y <= heroBaseY){
+    if(hero.position.y <= heroBaseY){
     	jumping = false;
     	bounceValue = (Math.random() * 0.04) + 0.005;
     }
-    heroCube.position.y += bounceValue;
+    hero.position.y += bounceValue;
     // lerp -> interpolazione usata per lo spostamento laterale
-    heroCube.position.x =  THREE.Math.lerp(heroCube.position.x,currentLane, 2*clock.getDelta());//clock.getElapsedTime());
+    hero.position.x =  THREE.Math.lerp(hero.position.x,currentLane, 2*clock.getDelta());
     bounceValue -= gravity;
-    if(clock.getElapsedTime() > coneReleaseInterval){
+    if(clock.getElapsedTime() > objectReleaseInterval){
     	clock.start();
-    	addPathCone();
+    	addPathObj();
     }
-    doConeLogic();
+    doObjectLogic();
     doExplosionLogic();
     render();
     gameOver();
-	if(muvt){;
+	if(moving){;
 		requestAnimationFrame(update); //request next update
 	}
 }
-function doConeLogic(){
-	var oneCone;
-	var conePos = new THREE.Vector3();
-	var conesToRemove = [];
-	conesInPath.forEach( function ( element, index ) {
-		oneCone = conesInPath[ index ];
-		conePos.setFromMatrixPosition( oneCone.matrixWorld );
-		if(conePos.z > 10 && oneCone.visible){ //gone out of our view zone
-			conesToRemove.push(oneCone);
+function doObjectLogic(){
+	var oneObj;
+	var objPos = new THREE.Vector3();
+	var objToRemove = [];
+	objectsInPath.forEach( function ( element, index ) {
+		oneObj = objectsInPath[ index ];
+		objPos.setFromMatrixPosition( oneObj.matrixWorld );
+		if(objPos.z > 10 && oneObj.visible){ //gone out of our view zone
+			objToRemove.push(oneObj);
 		}else{ //check collision
-			if(conePos.distanceTo(heroCube.position)<=0.5 && !isRestoring){
+			if(objPos.distanceTo(hero.position)<=0.5 && !isRestoring){
 				hasCollided = true;
-				explode(conesInPath[index]);
+				explode(objectsInPath[index]);
 			}
 		}
 	});
 	var fromWhere;
-	conesToRemove.forEach( function ( element, index ) {
-		oneCone   = conesToRemove[ index ];
-		fromWhere = conesInPath.indexOf(oneCone);
-		conesInPath.splice(fromWhere,1);
-		conesPool.push(oneCone);
-		oneCone.visible = false;
+	objToRemove.forEach( function ( element, index ) {
+		oneObj   = objToRemove[ index ];
+		fromWhere = objectsInPath.indexOf(oneObj);
+		objectsInPath.splice(fromWhere,1);
+		objectsPool.push(oneObj);
+		oneObj.visible = false;
 	});
 }
 // Crea i vettori di riferimento per l'esplosione 
@@ -567,6 +511,9 @@ function explode(object){
 		case "nuvoletta":
 			soundObstacles.play();
 			scene.fog = new THREE.FogExp2( 0xcccccc, 0.25 );
+			setTimeout(function(){
+				object.visible = false;
+			},100);
 			setTimeout(function(){
 				scene.fog = new THREE.FogExp2( 0xcccccc, 0.05 );
 			},timePowerUp);
@@ -585,7 +532,7 @@ function explode(object){
 			count -= 25;
 			particles.position.y = 2;
 			particles.position.z = 4.8;
-			particles.position.x = heroCube.position.x;
+			particles.position.x = hero.position.x;
 			for (var i = 0; i < particleCount; i ++ ) {
 				var vertex = new THREE.Vector3();
 				vertex.x = -0.2 + Math.random() * 0.4;
@@ -618,11 +565,11 @@ function explode(object){
 				object.visible = false;
 			},100);
 			rollingSpeed = rollingSpeed*2;
-			coneReleaseInterval = coneReleaseInterval/2;
+			objectReleaseInterval = objectReleaseInterval/2;
 			timeoutCollision /= 2; 
 			setTimeout(function(){
 				rollingSpeed = rollingSpeed/2;
-				coneReleaseInterval = coneReleaseInterval*2;
+				objectReleaseInterval = objectReleaseInterval*2;
 				timeoutCollision *= 2;
 			},timePowerUp);
 			break;
@@ -631,9 +578,9 @@ function explode(object){
 			setTimeout(function(){
 				object.visible = false;
 			},100);
-			heroCube.visible = false; 
+			hero.visible = false; 
 			setTimeout(function(){
-			heroCube.visible = true; 
+			hero.visible = true; 
 			},timePowerUp*2/3);
 			break;
 	}
@@ -642,7 +589,7 @@ function explode(object){
 		isRestoring = false;
 	},timeoutCollision);
 }
-// Inizializza le particelle
+// Inizializza le particelle per esplosione
 function addExplosion(){
 	particleGeometry = new THREE.Geometry();
 	for (var i = 0; i < particleCount; i ++ ) {
@@ -670,11 +617,9 @@ function doExplosionLogic(){
 	}
 	particleGeometry.verticesNeedUpdate = true;
 }
- /*     COMPLETE     */
 function render(){
 	renderer.render(scene, camera);//draw
 }
-  /*     COMPLETE     */
 function onWindowResize() {
 	//resize & align
 	sceneHeight = window.innerHeight;
@@ -683,16 +628,14 @@ function onWindowResize() {
 	camera.aspect = sceneWidth / sceneHeight;
 	camera.updateProjectionMatrix();
 }
- /*     COMPLETE     */
 function gameOver(){
 	if (count <= 0){
-		setTimeout(muvt = !muvt, 4000);
+		setTimeout(moving = !moving, 4000);
 		gameOverNav();
 		background.stop();
 
 	}
 }
- /*     COMPLETE     */
 function createHierarchy(){
 		bulloneSn = children[16];
 		piedeSn = children[12];
@@ -746,9 +689,8 @@ function createHierarchy(){
 		box3 = new THREE.Box3().setFromObject(testa);
 		centroTesta = box3.getCenter();
 
-		heroCube = body;
+		hero = body;
 }
- /*     COMPLETE     */
 function audioStart(){
 	listener = new THREE.AudioListener();
 			soundPowerUp = new THREE.Audio( listener );
